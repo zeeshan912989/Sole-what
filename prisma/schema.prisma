@@ -71,6 +71,8 @@ model Session {
   scheduledMessages ScheduledMessage[]
   webhooks    Webhook[]
   botConfig   BotConfig?
+  aiConfig    AiConfig?
+  dripCampaigns DripCampaign[]
   sessionAccesses SessionAccess[]
 }
 
@@ -148,18 +150,22 @@ model Group {
 }
 
 model AutoReply {
-  id          String   @id @default(cuid())
-  sessionId   String
-  keyword     String
-  matchType   String   // EXACT, CONTAINS, REGEX
-  response    String?  @db.Text
-  isMedia     Boolean  @default(false)
-  mediaUrl    String?
-  mediaType   String?
-  triggerType String   @default("ALL") // ALL, GROUP, PRIVATE
-  createdAt   DateTime @default(now())
+  id              String   @id @default(cuid())
+  sessionId       String
+  keyword         String
+  matchType       String   // EXACT, CONTAINS, REGEX
+  response        String?  @db.Text
+  isMedia         Boolean  @default(false)
+  mediaUrl        String?
+  mediaType       String?
+  replyType       String   @default("TEXT") // TEXT, MEDIA, POLL, LOCATION, CONTACT
+  interactiveData String?  @db.Text         // JSON payload for poll/location/contact
+  delaySeconds    Int      @default(0)      // Delay before sending response
+  enabled         Boolean  @default(true)
+  triggerType     String   @default("ALL")  // ALL, GROUP, PRIVATE
+  createdAt       DateTime @default(now())
 
-  session     Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  session         Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 }
 
 model Story {
@@ -390,3 +396,74 @@ model BroadcastRecipient {
 
   @@index([broadcastLogId])
 }
+
+model AiConfig {
+  id              String   @id @default(cuid())
+  sessionId       String   @unique
+  enabled         Boolean  @default(false)
+  provider        String   @default("openrouter") // openrouter, openai, gemini
+  apiKey          String?  @db.Text
+  modelName       String   @default("meta-llama/llama-3.1-8b-instruct:free")
+  systemPrompt    String?  @db.Text
+  knowledgeBase   String?  @db.Text
+  temperature     Float    @default(0.7)
+  maxTokens       Int      @default(800)
+  triggerInGroups Boolean  @default(false)
+  fallbackOnly    Boolean  @default(true) // Prioritize Keyword Rules over AI
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  session         Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model DripCampaign {
+  id              String           @id @default(cuid())
+  sessionId       String
+  name            String
+  description     String?          @db.Text
+  enabled         Boolean          @default(true)
+  autoStopOnReply Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  session         Session          @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  steps           DripStep[]
+  subscribers     DripSubscriber[]
+
+  @@index([sessionId])
+}
+
+model DripStep {
+  id              String       @id @default(cuid())
+  campaignId      String
+  stepOrder       Int          @default(1)
+  delayDays       Int          @default(0)
+  delayHours      Int          @default(0)
+  messageType     String       @default("TEXT") // TEXT, MEDIA, POLL, LOCATION, CONTACT
+  content         String?      @db.Text
+  mediaUrl        String?      @db.Text
+  interactiveData String?      @db.Text
+  createdAt       DateTime     @default(now())
+
+  campaign        DripCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+}
+
+model DripSubscriber {
+  id               String       @id @default(cuid())
+  campaignId       String
+  jid              String
+  currentStepOrder Int          @default(1)
+  status           String       @default("ACTIVE") // ACTIVE, PAUSED, COMPLETED, STOPPED_REPLIED
+  nextRunAt        DateTime
+  lastSentAt       DateTime?
+  createdAt        DateTime     @default(now())
+
+  campaign         DripCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@index([jid])
+  @@index([status, nextRunAt])
+}
+

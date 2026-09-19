@@ -2,11 +2,17 @@ import cron from "node-cron";
 import cronParser from "cron-parser";
 import { prisma } from "@/lib/prisma";
 import { waManager } from "@/modules/whatsapp/manager";
+import { processDueDripSubscribers } from "@/modules/whatsapp/drip-engine";
 import { logger } from "./logger";
 export function initScheduler() {
     // Run every minute
     cron.schedule("* * * * *", async () => {
         try {
+            // Process due drip sequence subscribers
+            processDueDripSubscribers().catch((err) => {
+                logger.error("Cron", "Drip engine processing error:", err);
+            });
+
             const now = new Date();
             
             // Fetch pending messages due for sending

@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { ChatService } from "@/modules/whatsapp/chat.service";
 import { getAuthenticatedUserForAction } from "@/lib/server-action-auth";
 import { canAccessSession } from "@/lib/api-auth";
+import { waManager } from "@/modules/whatsapp/manager";
+import { fireSentWebhook } from "@/lib/webhook";
 
 const CHAT_PAGE_SIZE = parseInt(process.env.NEXT_PUBLIC_CHAT_PAGE_SIZE || "50", 10);
 
@@ -116,3 +118,105 @@ export async function sendMediaMessage(formData: FormData) {
         throw new Error(`Failed to send media: ${error.message}`);
     }
 }
+
+// Send WhatsApp Poll
+export async function sendPollMessage(
+    sessionId: string,
+    jid: string,
+    question: string,
+    options: string[],
+    selectableCount: number = 1
+) {
+    const user = await getAuthenticatedUserForAction();
+    if (!user) throw new Error("Unauthorized");
+
+    const canAccess = await canAccessSession(user.id, user.role, sessionId);
+    if (!canAccess) throw new Error("Forbidden");
+
+    const instance = waManager.getInstance(sessionId);
+    if (!instance?.socket) throw new Error("WhatsApp session not ready");
+
+    try {
+        const sendResult = await instance.socket.sendMessage(jid, {
+            poll: {
+                name: question,
+                values: options,
+                selectableCount
+            }
+        });
+
+        fireSentWebhook(sessionId, jid, { type: 'poll', text: question }, sendResult).catch(() => {});
+        return { success: true };
+    } catch (error: any) {
+        console.error("Send poll error:", error);
+        throw new Error(`Failed to send poll: ${error.message}`);
+    }
+}
+
+// Send Geo Location Pin
+export async function sendLocationMessage(
+    sessionId: string,
+    jid: string,
+    latitude: number,
+    longitude: number,
+    name?: string,
+    address?: string
+) {
+    const user = await getAuthenticatedUserForAction();
+    if (!user) throw new Error("Unauthorized");
+
+    const canAccess = await canAccessSession(user.id, user.role, sessionId);
+    if (!canAccess) throw new Error("Forbidden");
+
+    const instance = waManager.getInstance(sessionId);
+    if (!instance?.socket) throw new Error("WhatsApp session not ready");
+
+    try {
+        const sendResult = await instance.socket.sendMessage(jid, {
+            location: {
+                degreesLatitude: latitude,
+                degreesLongitude: longitude,
+                name: name || undefined,
+                address: address || undefined
+            }
+        });
+
+        fireSentWebhook(sessionId, jid, { type: 'location', text: name || address || `${latitude},${longitude}` }, sendResult).catch(() => {});
+        return { success: true };
+    } catch (error: any) {
+        console.error("Send location error:", error);
+        throw new Error(`Failed to send location: ${error.message}`);
+    }
+}
+
+// Send Contact Card / VCard
+export async function sendContactMessage(
+    sessionId: string,
+    jid: string,
+    contacts: Array<{ displayName: string; vcard: string }>
+) {
+    const user = await getAuthenticatedUserForAction();
+    if (!user) throw new Error("Unauthorized");
+
+    const canAccess = await canAccessSession(user.id, user.role, sessionId);
+    if (!canAccess) throw new Error("Forbidden");
+
+    const instance = waManager.getInstance(sessionId);
+    if (!instance?.socket) throw new Error("WhatsApp session not ready");
+
+    try {
+        const sendResult = await instance.socket.sendMessage(jid, {
+            contacts: {
+                displayName: contacts.length > 1 ? "Contacts" : (contacts[0]?.displayName || "Contact"),
+                contacts
+            }
+        });
+
+        fireSentWebhook(sessionId, jid, { type: 'contact', text: contacts[0]?.displayName || "Contact Card" }, sendResult).catch(() => {});
+        return { success: true };
+    } catch (error: any) {
+        console.error("Send contact error:", error);
+        throw new Error(`Failed to send contact card: ${error.message}`);
+    }
+}
+

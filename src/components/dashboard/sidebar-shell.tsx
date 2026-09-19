@@ -30,7 +30,7 @@ export function SidebarShell({ appName, userName, userEmail, version }: SidebarS
             <div className={`border-b border-border/30 transition-all duration-300 ${isCollapsed ? "px-3 py-4" : "px-5 py-5"}`}>
                 {isCollapsed ? (
                     <div className="flex justify-center">
-                        <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-primary to-blue-500 flex items-center justify-center text-white font-bold text-sm shadow-md">
+                        <div className="h-9 w-9 rounded-md bg-gradient-to-br from-primary to-blue-500 flex items-center justify-center text-white font-bold text-sm shadow-md">
                             {appName.charAt(0)}
                         </div>
                     </div>
@@ -54,7 +54,7 @@ export function SidebarShell({ appName, userName, userEmail, version }: SidebarS
             >
                 {isCollapsed ? (
                     <div suppressHydrationWarning={true} className="flex flex-col items-center gap-2">
-                        <div suppressHydrationWarning={true} className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary/20 to-blue-500/20 flex items-center justify-center text-xs font-bold text-primary">
+                        <div suppressHydrationWarning={true} className="h-8 w-8 rounded-md bg-gradient-to-br from-primary/20 to-blue-500/20 flex items-center justify-center text-xs font-bold text-primary">
                             {userName?.charAt(0)?.toUpperCase() || "U"}
                         </div>
                         <button

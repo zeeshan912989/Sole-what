@@ -27,7 +27,11 @@ import {
     Tag,
     MessageCircleReply,
     Contact,
-    UserPlus
+    UserPlus,
+    ShoppingBag,
+    BarChart2,
+    Sparkles,
+    Repeat
 } from "lucide-react";
 import { useSidebar } from "./sidebar-context";
 import {
@@ -64,6 +68,7 @@ const navGroups: NavGroup[] = [
         items: [
             { href: "/dashboard/chat", label: "Chat", icon: MessageSquare },
             { href: "/dashboard/broadcast", label: "Broadcast", icon: Megaphone },
+            { href: "/dashboard/interactive", label: "Interactive Msgs", icon: BarChart2 },
             { href: "/dashboard/sticker", label: "Sticker Maker", icon: ImageIcon },
         ],
     },
@@ -79,9 +84,12 @@ const navGroups: NavGroup[] = [
         label: "Automation",
         items: [
             { href: "/dashboard/bot-settings", label: "Bot Settings", icon: Bot },
+            { href: "/dashboard/ai-bot", label: "AI Auto-Responder", icon: Sparkles },
             { href: "/dashboard/autoreply", label: "Auto Reply", icon: MessageCircleReply },
+            { href: "/dashboard/sequences", label: "Drip Sequences", icon: Repeat },
             { href: "/dashboard/profile", label: "Bot Profile", icon: UserCircle },
             { href: "/dashboard/scheduler", label: "Scheduler", icon: CalendarClock },
+            { href: "/dashboard/templates", label: "E-Commerce Presets", icon: ShoppingBag },
             { href: "/dashboard/webhooks", label: "Webhooks & API", icon: Webhook },
         ],
     },

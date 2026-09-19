@@ -143,7 +143,7 @@ export default function ApiDocsPage() {
 
         // Auto Reply
         { category: "Auto Reply", method: "GET", path: "/api/autoreplies/[sessionId]", description: "List auto replies", params: "Path: sessionId" },
-        { category: "Auto Reply", method: "POST", path: "/api/autoreplies/[sessionId]", description: "Create auto reply", params: "Path: sessionId, Body: { keyword, response, matchType }" },
+        { category: "Auto Reply", method: "POST", path: "/api/autoreplies/[sessionId]", description: "Create auto reply", params: "Path: sessionId, Body: { keyword, response, matchType, replyType, interactiveData, delaySeconds, enabled }" },
         { category: "Auto Reply", method: "GET", path: "/api/autoreplies/[sessionId]/[id]", description: "Get auto reply", params: "Path: sessionId, id" },
         { category: "Auto Reply", method: "PUT", path: "/api/autoreplies/[sessionId]/[id]", description: "Update auto reply", params: "Path: sessionId, id, Body: { ... }" },
         { category: "Auto Reply", method: "DELETE", path: "/api/autoreplies/[sessionId]/[id]", description: "Delete auto reply", params: "Path: sessionId, id" },
@@ -151,6 +151,16 @@ export default function ApiDocsPage() {
         // Auto Reply (Legacy)
         { category: "Auto Reply", method: "GET", path: "/api/autoreplies", description: "List auto replies [DEPRECATED]", params: "Query: sessionId" },
         { category: "Auto Reply", method: "POST", path: "/api/autoreplies", description: "Create auto reply [DEPRECATED]", params: "Body: { sessionId, keyword, ... }" },
+
+        // AI Auto-Responder
+        { category: "AI Auto-Responder", method: "GET", path: "/api/sessions/[sessionId]/ai-config", description: "Get AI config & fallback mode", params: "Path: sessionId" },
+        { category: "AI Auto-Responder", method: "POST", path: "/api/sessions/[sessionId]/ai-config", description: "Update AI bot & fallback mode settings", params: "Path: sessionId, Body: { enabled, provider, apiKey, model, systemPrompt, fallbackOnly }" },
+        { category: "AI Auto-Responder", method: "POST", path: "/api/ai/test", description: "Test AI bot response generation", params: "Body: { prompt, apiKey, provider, model, systemPrompt }" },
+
+        // Drip Sequences
+        { category: "Drip Sequences", method: "GET", path: "/api/sequences/[sessionId]", description: "List drip sequences", params: "Path: sessionId" },
+        { category: "Drip Sequences", method: "POST", path: "/api/sequences/[sessionId]", description: "Create drip sequence", params: "Path: sessionId, Body: { name, triggerKeyword, steps[] }" },
+        { category: "Drip Sequences", method: "POST", path: "/api/sequences/[sessionId]/enroll", description: "Enroll contact in drip campaign", params: "Path: sessionId, Body: { sequenceId, jid }" },
 
         // Scheduler
         { category: "Scheduler", method: "GET", path: "/api/scheduler/[sessionId]", description: "List scheduled", params: "Path: sessionId" },

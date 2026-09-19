@@ -32,7 +32,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         try {
             const res = await fetch('/api/sessions');
             if (res.ok) {
-                const responseData = await res.json();
+                const text = await res.text();
+                if (!text) return;
+                const responseData = JSON.parse(text);
                 const data = responseData?.data || [];
                 // Filter connected only? Or showing all but disabled?
                 // Logic: Only show CONNECTED in selector for "Active" operations.

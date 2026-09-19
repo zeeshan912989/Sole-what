@@ -7,6 +7,10 @@ import pino from "pino";
 import { resolveToPhoneJidBySessionId as resolveToPhoneJid, isLidJid } from "./jid-utils";
 import { logger } from "./logger";
 import { waManager } from "@/modules/whatsapp/manager";
+import { generateAiResponse } from "./ai-service";
+import { ChatService } from "@/modules/whatsapp/chat.service";
+import { cancelDripOnCustomerReply } from "@/modules/whatsapp/drip-engine";
+import { hasMatchingKeywordRule } from "@/modules/whatsapp/store/autoreply";
 
 // Event types that can trigger webhooks
 export type WebhookEventType =
@@ -139,7 +143,7 @@ async function sendWebhookRequest(url: string, payload: WebhookPayload, secret?:
 
     const headers: Record<string, string> = {
         "Content-Type": "application/json",
-        "User-Agent": "WA-AKG-Webhook/1.0"
+        "User-Agent": "sole-what-Webhook/1.0"
     };
 
     // Add HMAC signature if secret is provided
@@ -278,7 +282,7 @@ export async function testWebhook(webhookId: string, url: string, secret?: strin
         sessionId: "test",
         timestamp: new Date().toISOString(),
         data: {
-            message: "This is a test webhook from WA-AKG",
+            message: "This is a test webhook from sole-what",
             timestamp: new Date().toISOString()
         }
     };
@@ -582,6 +586,39 @@ export async function onMessageReceived(sessionId: string, message: any, existin
         quoted: quoted,
 
     });
+
+    // --- Auto-Stop Drip Sequence on Customer Reply ---
+    if (!fromMe) {
+        cancelDripOnCustomerReply(sessionId, normalizedFrom).catch(() => {});
+    }
+
+    // --- AI Auto-Responder Integration ---
+    if (!fromMe && normalized.content && normalized.content.trim().length > 0) {
+        // Check Fallback Mode setting
+        const aiConfig = await prisma.aiConfig.findUnique({ where: { sessionId } });
+        const fallbackOnly = (aiConfig as any)?.fallbackOnly !== false;
+
+        let isKeywordMatched = false;
+        if (fallbackOnly) {
+            isKeywordMatched = await hasMatchingKeywordRule(sessionId, normalized.content, isGroup);
+        }
+
+        if (isKeywordMatched) {
+            logger.info("AI-Bot", `Skipping AI response for ${normalizedFrom} because Keyword Rule matched (Fallback Mode ON).`);
+        } else {
+            logger.info("AI-Bot", `Incoming message from ${normalizedFrom}: "${normalized.content}"`);
+            generateAiResponse(sessionId, normalized.content, isGroup)
+                .then(async (aiReply) => {
+                    if (aiReply && aiReply.trim().length > 0) {
+                        logger.info("AI-Bot", `Auto replying to ${normalizedFrom} via AI...`);
+                        await ChatService.sendTextMessage(sessionId, normalizedFrom, aiReply.trim());
+                    }
+                })
+                .catch((err) => {
+                    logger.error("AI-Bot", "Failed to dispatch AI response:", err);
+                });
+        }
+    }
 }
 
 /**

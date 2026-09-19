@@ -34,15 +34,29 @@ export async function getAutoReplies(sessionId: string) {
     return rules;
 }
 
+interface AutoReplyInputData {
+    keyword: string;
+    response?: string;
+    matchType: string;
+    isMedia?: boolean;
+    mediaUrl?: string | null;
+    mediaType?: string | null;
+    replyType?: string;
+    interactiveData?: string | null;
+    delaySeconds?: number;
+    enabled?: boolean;
+    triggerType: string;
+}
+
 // Create a new auto reply directly to DB
-export async function createAutoReply(sessionId: string, data: { keyword: string; response?: string; matchType: string; isMedia: boolean; mediaUrl?: string | null; mediaType?: string | null; triggerType: string }) {
+export async function createAutoReply(sessionId: string, data: AutoReplyInputData) {
     const nextAuthSession = await getAuthenticatedUserForAction();
     if (!nextAuthSession) {
         throw new Error("Unauthorized");
     }
 
-    if (!data.keyword || (!data.response && !data.mediaUrl)) {
-        throw new Error("Keyword and either response or media are required");
+    if (!data.keyword) {
+        throw new Error("Keyword is required");
     }
 
     const canAccess = await canAccessSession(nextAuthSession.id, nextAuthSession.role, sessionId);
@@ -67,7 +81,10 @@ export async function createAutoReply(sessionId: string, data: { keyword: string
         isMedia: !!data.mediaUrl,
         mediaUrl: data.mediaUrl || null,
         mediaType: data.mediaType || null,
-        // @ts-ignore
+        replyType: data.replyType || "TEXT",
+        interactiveData: data.interactiveData || null,
+        delaySeconds: data.delaySeconds || 0,
+        enabled: data.enabled !== undefined ? data.enabled : true,
         triggerType: data.triggerType || "ALL"
     };
 
@@ -102,14 +119,14 @@ export async function deleteAutoReply(sessionId: string, ruleId: string) {
     return { success: true };
 }
 
-export async function updateAutoReply(sessionId: string, ruleId: string, data: { keyword: string; response?: string; matchType: string; isMedia: boolean; mediaUrl?: string | null; mediaType?: string | null; triggerType: string }) {
+export async function updateAutoReply(sessionId: string, ruleId: string, data: AutoReplyInputData) {
     const nextAuthSession = await getAuthenticatedUserForAction();
     if (!nextAuthSession) {
         throw new Error("Unauthorized");
     }
 
-    if (!data.keyword || (!data.response && !data.mediaUrl)) {
-        throw new Error("Keyword and either response or media are required");
+    if (!data.keyword) {
+        throw new Error("Keyword is required");
     }
 
     const rule = await prisma.autoReply.findUnique({
@@ -133,7 +150,10 @@ export async function updateAutoReply(sessionId: string, ruleId: string, data: {
         isMedia: !!data.mediaUrl,
         mediaUrl: data.mediaUrl || null,
         mediaType: data.mediaType || null,
-        // @ts-ignore
+        replyType: data.replyType || "TEXT",
+        interactiveData: data.interactiveData || null,
+        delaySeconds: data.delaySeconds || 0,
+        enabled: data.enabled !== undefined ? data.enabled : true,
         triggerType: data.triggerType || "ALL"
     };
 
@@ -144,3 +164,38 @@ export async function updateAutoReply(sessionId: string, ruleId: string, data: {
 
     return updatedRule;
 }
+
+export async function toggleAutoReplyRule(sessionId: string, ruleId: string) {
+    const nextAuthSession = await getAuthenticatedUserForAction();
+    if (!nextAuthSession) {
+        throw new Error("Unauthorized");
+    }
+
+    const rule = await prisma.autoReply.findUnique({
+        where: { id: ruleId },
+        include: { session: true }
+    });
+
+    if (!rule) {
+        throw new Error("Rule not found");
+    }
+
+    const canAccess = await canAccessSession(nextAuthSession.id, nextAuthSession.role, rule.session.sessionId);
+    if (!canAccess || rule.session.sessionId !== sessionId) {
+        throw new Error("Forbidden");
+    }
+
+    // @ts-ignore
+    const currentStatus = rule.enabled !== false;
+
+    const updatedRule = await prisma.autoReply.update({
+        where: { id: ruleId },
+        data: {
+            // @ts-ignore
+            enabled: !currentStatus
+        }
+    });
+
+    return updatedRule;
+}
+

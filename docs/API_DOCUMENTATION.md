@@ -1,4 +1,4 @@
-# WA-AKG API Documentation
+# sole-what API Documentation
 
 # WhatsApp AI Gateway — Complete API Reference
 

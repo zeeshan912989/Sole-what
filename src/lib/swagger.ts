@@ -7,7 +7,7 @@ export const getApiDocs = () => {
         definition: {
             openapi: "3.0.0",
             info: {
-                title: "WA-AKG API Documentation",
+                title: "sole-what API Documentation",
                 version: "1.6.1",
                 description: `
 # WhatsApp AI Gateway - Complete API Reference
@@ -4411,6 +4411,215 @@ All endpoints require authentication via:
                             401: { $ref: "#/components/responses/Unauthorized" },
                             403: { $ref: "#/components/responses/Forbidden" },
                             404: { description: "Label not found" }
+                        }
+                    }
+                },
+
+                // ==================== AI AUTO-RESPONDER ====================
+                "/sessions/{sessionId}/ai-config": {
+                    get: {
+                        tags: ["AI Auto-Responder"],
+                        summary: "Get AI Auto-Responder Config",
+                        description: "Retrieve AI configuration for a specific session including provider, model, system prompt, and fallbackOnly flag",
+                        parameters: [
+                            { name: "sessionId", in: "path", required: true, schema: { type: "string" } }
+                        ],
+                        responses: {
+                            200: {
+                                description: "AI Config retrieved",
+                                content: {
+                                    "application/json": {
+                                        schema: {
+                                            type: "object",
+                                            properties: {
+                                                success: { type: "boolean", example: true },
+                                                config: {
+                                                    type: "object",
+                                                    properties: {
+                                                        enabled: { type: "boolean" },
+                                                        provider: { type: "string", example: "gemini" },
+                                                        model: { type: "string", example: "gemini-1.5-flash" },
+                                                        systemPrompt: { type: "string" },
+                                                        temperature: { type: "number", example: 0.7 },
+                                                        fallbackOnly: { type: "boolean", example: true }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            401: { $ref: "#/components/responses/Unauthorized" },
+                            404: { description: "Session not found" }
+                        }
+                    },
+                    post: {
+                        tags: ["AI Auto-Responder"],
+                        summary: "Update AI Auto-Responder Config",
+                        description: "Update AI configuration settings including fallbackOnly toggle",
+                        parameters: [
+                            { name: "sessionId", in: "path", required: true, schema: { type: "string" } }
+                        ],
+                        requestBody: {
+                            required: true,
+                            content: {
+                                "application/json": {
+                                    schema: {
+                                        type: "object",
+                                        properties: {
+                                            enabled: { type: "boolean" },
+                                            apiKey: { type: "string" },
+                                            provider: { type: "string", enum: ["gemini", "openai", "groq", "custom"] },
+                                            model: { type: "string" },
+                                            systemPrompt: { type: "string" },
+                                            temperature: { type: "number" },
+                                            fallbackOnly: { type: "boolean", description: "Only reply with AI when no keyword rule matches" }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        responses: {
+                            200: { description: "AI config saved" },
+                            401: { $ref: "#/components/responses/Unauthorized" }
+                        }
+                    }
+                },
+                "/ai/test": {
+                    post: {
+                        tags: ["AI Auto-Responder"],
+                        summary: "Test AI Bot Response",
+                        description: "Generate a test AI response with given prompt and settings",
+                        requestBody: {
+                            required: true,
+                            content: {
+                                "application/json": {
+                                    schema: {
+                                        type: "object",
+                                        required: ["prompt"],
+                                        properties: {
+                                            prompt: { type: "string", example: "What is your pricing?" },
+                                            apiKey: { type: "string" },
+                                            provider: { type: "string" },
+                                            model: { type: "string" },
+                                            systemPrompt: { type: "string" },
+                                            temperature: { type: "number" }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        responses: {
+                            200: {
+                                description: "Generated response",
+                                content: {
+                                    "application/json": {
+                                        schema: {
+                                            type: "object",
+                                            properties: {
+                                                success: { type: "boolean" },
+                                                reply: { type: "string" }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+
+                // ==================== DRIP SEQUENCES ====================
+                "/sequences/{sessionId}": {
+                    get: {
+                        tags: ["Drip Sequences"],
+                        summary: "List Drip Campaigns",
+                        description: "List all drip marketing sequences for a session",
+                        parameters: [
+                            { name: "sessionId", in: "path", required: true, schema: { type: "string" } }
+                        ],
+                        responses: {
+                            200: {
+                                description: "List of sequences",
+                                content: {
+                                    "application/json": {
+                                        schema: {
+                                            type: "object",
+                                            properties: {
+                                                success: { type: "boolean" },
+                                                sequences: { type: "array", items: { type: "object" } }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            401: { $ref: "#/components/responses/Unauthorized" }
+                        }
+                    },
+                    post: {
+                        tags: ["Drip Sequences"],
+                        summary: "Create Drip Campaign",
+                        description: "Create a new multi-step drip sequence with trigger keyword and time-delay steps",
+                        parameters: [
+                            { name: "sessionId", in: "path", required: true, schema: { type: "string" } }
+                        ],
+                        requestBody: {
+                            required: true,
+                            content: {
+                                "application/json": {
+                                    schema: {
+                                        type: "object",
+                                        required: ["name", "triggerKeyword", "steps"],
+                                        properties: {
+                                            name: { type: "string", example: "Welcome Onboarding Sequence" },
+                                            triggerKeyword: { type: "string", example: "join" },
+                                            steps: {
+                                                type: "array",
+                                                items: {
+                                                    type: "object",
+                                                    properties: {
+                                                        stepOrder: { type: "integer", example: 1 },
+                                                        delayMinutes: { type: "integer", example: 60 },
+                                                        message: { type: "string", example: "Welcome to our service!" }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        responses: {
+                            200: { description: "Sequence created successfully" },
+                            401: { $ref: "#/components/responses/Unauthorized" }
+                        }
+                    }
+                },
+                "/sequences/{sessionId}/enroll": {
+                    post: {
+                        tags: ["Drip Sequences"],
+                        summary: "Enroll Contact in Drip Sequence",
+                        description: "Manually enroll a recipient into a drip marketing campaign",
+                        parameters: [
+                            { name: "sessionId", in: "path", required: true, schema: { type: "string" } }
+                        ],
+                        requestBody: {
+                            required: true,
+                            content: {
+                                "application/json": {
+                                    schema: {
+                                        type: "object",
+                                        required: ["sequenceId", "jid"],
+                                        properties: {
+                                            sequenceId: { type: "string" },
+                                            jid: { type: "string", example: "923001234567@s.whatsapp.net" }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        responses: {
+                            200: { description: "Enrolled contact successfully" },
+                            400: { description: "Already enrolled or invalid sequence" }
                         }
                     }
                 }

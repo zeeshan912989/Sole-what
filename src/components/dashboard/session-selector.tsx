@@ -14,7 +14,7 @@ export function SessionSelector() {
             <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground hidden lg:inline">Session:</span>
             <div className="w-[140px] sm:w-[200px]">
                 <Select value={sessionId} onValueChange={setSessionId} disabled={loading || sessions.length === 0}>
-                    <SelectTrigger className="h-9 border border-border/60 bg-background/50 hover:bg-muted/30 transition-colors rounded-xl shadow-sm focus:ring-1 focus:ring-primary/20">
+                    <SelectTrigger className="h-9 border border-border/60 bg-background/50 hover:bg-muted/30 transition-colors rounded-md shadow-sm focus:ring-1 focus:ring-primary/20">
                         <SelectValue placeholder={loading ? "Loading..." : "Select Session"}>
                             {selectedSession ? (
                                 <div className="flex items-center gap-2 text-left">
@@ -29,9 +29,9 @@ export function SessionSelector() {
                             ) : null}
                         </SelectValue>
                     </SelectTrigger>
-                    <SelectContent className="rounded-xl border border-border/50 shadow-lg p-1">
+                    <SelectContent className="rounded-md border border-border/50 shadow-lg p-1">
                         {sessions.map((s) => (
-                            <SelectItem key={s.sessionId} value={s.sessionId} className="rounded-lg py-2 focus:bg-muted/50 cursor-pointer">
+                            <SelectItem key={s.sessionId} value={s.sessionId} className="rounded-md py-2 focus:bg-muted/50 cursor-pointer">
                                 <div className="flex items-center gap-2">
                                     <span className="relative flex h-2 w-2 flex-shrink-0">
                                         {s.status === "CONNECTED" && (
@@ -54,7 +54,7 @@ export function SessionSelector() {
                     </SelectContent>
                 </Select>
             </div>
-            <Button variant="ghost" size="icon" className="h-9 w-9 hover:bg-muted/50 rounded-xl" onClick={refreshSessions} title="Refresh Sessions" disabled={loading}>
+            <Button variant="ghost" size="icon" className="h-9 w-9 hover:bg-muted/50 rounded-md" onClick={refreshSessions} title="Refresh Sessions" disabled={loading}>
                 <RefreshCw className={`h-4 w-4 text-muted-foreground hover:text-foreground ${loading ? 'animate-spin' : ''}`} />
             </Button>
         </div>

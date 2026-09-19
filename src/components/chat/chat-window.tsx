@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Send, Paperclip, ArrowLeft, FileText, Image as ImageIcon, Music, Video, Download, ArrowDown, CornerUpLeft, Copy, Trash2, Info, X } from "lucide-react";
+import { Send, Paperclip, ArrowLeft, FileText, Image as ImageIcon, Music, Video, Download, ArrowDown, CornerUpLeft, Copy, Trash2, Info, X, BarChart2, MapPin, UserCheck, Plus } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
     AlertDialog,
@@ -15,10 +15,18 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { getChatMessages, sendChatMessage, sendMediaMessage } from "@/app/dashboard/chat/actions";
+import { getChatMessages, sendChatMessage, sendMediaMessage, sendPollMessage, sendLocationMessage, sendContactMessage } from "@/app/dashboard/chat/actions";
 import { useSocket } from "./socket-context";
+
 
 interface Message {
     id: string;
@@ -185,8 +193,76 @@ export function ChatWindow({ sessionId, jid, name, onBack }: ChatWindowProps) {
     // Context menu state
     const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
 
+    // Interactive Modals State
+    const [sendingInteractive, setSendingInteractive] = useState(false);
+    const [pollModalOpen, setPollModalOpen] = useState(false);
+    const [pollQuestion, setPollQuestion] = useState("");
+    const [pollOptions, setPollOptions] = useState<string[]>(["Option 1", "Option 2"]);
+
+    const [locationModalOpen, setLocationModalOpen] = useState(false);
+    const [locLat, setLocLat] = useState(31.5204);
+    const [locLng, setLocLng] = useState(74.3587);
+    const [locName, setLocName] = useState("");
+    const [locAddress, setLocAddress] = useState("");
+
+    const [contactModalOpen, setContactModalOpen] = useState(false);
+    const [cName, setCName] = useState("");
+    const [cPhone, setCPhone] = useState("");
+    const [cOrg, setCOrg] = useState("");
+
+    const handleSendPollModal = async () => {
+        if (!pollQuestion.trim()) return toast.error("Poll question required");
+        const opts = pollOptions.map(o => o.trim()).filter(Boolean);
+        if (opts.length < 2) return toast.error("At least 2 options required");
+        try {
+            setSendingInteractive(true);
+            await sendPollMessage(sessionId, jid, pollQuestion.trim(), opts, 1);
+            toast.success("Poll sent!");
+            setPollModalOpen(false);
+            setPollQuestion("");
+            setPollOptions(["Option 1", "Option 2"]);
+            setTimeout(() => fetchMessages(), 800);
+        } catch (e: any) {
+            toast.error(e.message || "Failed to send poll");
+        } finally {
+            setSendingInteractive(false);
+        }
+    };
+
+    const handleSendLocationModal = async () => {
+        try {
+            setSendingInteractive(true);
+            await sendLocationMessage(sessionId, jid, locLat, locLng, locName.trim() || undefined, locAddress.trim() || undefined);
+            toast.success("Location Pin sent!");
+            setLocationModalOpen(false);
+            setTimeout(() => fetchMessages(), 800);
+        } catch (e: any) {
+            toast.error(e.message || "Failed to send location");
+        } finally {
+            setSendingInteractive(false);
+        }
+    };
+
+    const handleSendContactModal = async () => {
+        if (!cName.trim() || !cPhone.trim()) return toast.error("Name and Phone required");
+        const vcard = `BEGIN:VCARD\nVERSION:3.0\nN:;${cName.trim()};;;\nFN:${cName.trim()}\nORG:${cOrg.trim()}\nTEL;type=CELL;type=VOICE;type=pref:${cPhone.replace(/[^0-9+]/g, "")}\nEND:VCARD`;
+        try {
+            setSendingInteractive(true);
+            await sendContactMessage(sessionId, jid, [{ displayName: cName.trim(), vcard }]);
+            toast.success("Contact Card sent!");
+            setContactModalOpen(false);
+            setCName(""); setCPhone(""); setCOrg("");
+            setTimeout(() => fetchMessages(), 800);
+        } catch (e: any) {
+            toast.error(e.message || "Failed to send contact");
+        } finally {
+            setSendingInteractive(false);
+        }
+    };
+
     const { getSocket, joinSession } = useSocket();
     const getDateLabel = useDateLabel();
+
 
     const scrollToBottom = useCallback((smooth = true) => {
         bottomRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "end" });
@@ -579,12 +655,16 @@ export function ChatWindow({ sessionId, jid, name, onBack }: ChatWindowProps) {
                         <PopoverTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full shrink-0 text-muted-foreground hover:text-foreground"><Paperclip className="h-4.5 w-4.5" /></Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-44 p-1.5" side="top" align="start">
+                        <PopoverContent className="w-48 p-1.5" side="top" align="start">
                             <div className="flex flex-col gap-0.5">
                                 <Button variant="ghost" size="sm" className="justify-start gap-2 h-8 text-xs" onClick={() => triggerUpload('image')}><ImageIcon className="h-3.5 w-3.5 text-blue-500" /> Image</Button>
                                 <Button variant="ghost" size="sm" className="justify-start gap-2 h-8 text-xs" onClick={() => triggerUpload('video')}><Video className="h-3.5 w-3.5 text-purple-500" /> Video</Button>
                                 <Button variant="ghost" size="sm" className="justify-start gap-2 h-8 text-xs" onClick={() => triggerUpload('audio')}><Music className="h-3.5 w-3.5 text-orange-500" /> Audio</Button>
                                 <Button variant="ghost" size="sm" className="justify-start gap-2 h-8 text-xs" onClick={() => triggerUpload('document')}><FileText className="h-3.5 w-3.5 text-emerald-500" /> Document</Button>
+                                <div className="my-1 border-t border-border/50" />
+                                <Button variant="ghost" size="sm" className="justify-start gap-2 h-8 text-xs font-medium" onClick={() => setPollModalOpen(true)}><BarChart2 className="h-3.5 w-3.5 text-amber-500" /> WhatsApp Poll</Button>
+                                <Button variant="ghost" size="sm" className="justify-start gap-2 h-8 text-xs font-medium" onClick={() => setLocationModalOpen(true)}><MapPin className="h-3.5 w-3.5 text-rose-500" /> Location Pin</Button>
+                                <Button variant="ghost" size="sm" className="justify-start gap-2 h-8 text-xs font-medium" onClick={() => setContactModalOpen(true)}><UserCheck className="h-3.5 w-3.5 text-teal-500" /> Contact Card</Button>
                             </div>
                         </PopoverContent>
                     </Popover>
@@ -610,6 +690,188 @@ export function ChatWindow({ sessionId, jid, name, onBack }: ChatWindowProps) {
                     <Button onClick={handleSend} disabled={!input.trim()} size="icon" className="h-9 w-9 rounded-full shrink-0"><Send className="h-4 w-4" /></Button>
                 </div>
             </div>
+
+            {/* POLL DIALOG */}
+            <Dialog open={pollModalOpen} onOpenChange={setPollModalOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <BarChart2 className="h-5 w-5 text-amber-500" />
+                            Send Interactive Poll
+                        </DialogTitle>
+                        <DialogDescription>
+                            Create a live WhatsApp voting poll for this contact.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                        <div>
+                            <label className="text-xs font-semibold mb-1 block">Poll Question</label>
+                            <input
+                                type="text"
+                                value={pollQuestion}
+                                onChange={(e) => setPollQuestion(e.target.value)}
+                                placeholder="e.g. Which product do you prefer?"
+                                className="w-full h-9 px-3 bg-background border rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <label className="text-xs font-semibold">Options</label>
+                                <button
+                                    onClick={() => setPollOptions([...pollOptions, `Option ${pollOptions.length + 1}`])}
+                                    className="text-xs text-primary font-medium hover:underline flex items-center gap-1"
+                                >
+                                    <Plus className="h-3 w-3" /> Add Option
+                                </button>
+                            </div>
+                            {pollOptions.map((opt, i) => (
+                                <div key={i} className="flex items-center gap-2">
+                                    <input
+                                        type="text"
+                                        value={opt}
+                                        onChange={(e) => {
+                                            const next = [...pollOptions];
+                                            next[i] = e.target.value;
+                                            setPollOptions(next);
+                                        }}
+                                        className="flex-1 h-8 px-2.5 bg-background border rounded-md text-xs outline-none"
+                                    />
+                                    {pollOptions.length > 2 && (
+                                        <button onClick={() => setPollOptions(pollOptions.filter((_, idx) => idx !== i))} className="text-muted-foreground hover:text-red-500">
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="flex justify-end gap-2 pt-2">
+                        <Button variant="outline" size="sm" onClick={() => setPollModalOpen(false)}>Cancel</Button>
+                        <Button size="sm" onClick={handleSendPollModal} disabled={sendingInteractive}>
+                            {sendingInteractive ? "Sending..." : "Send Poll"}
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* LOCATION DIALOG */}
+            <Dialog open={locationModalOpen} onOpenChange={setLocationModalOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <MapPin className="h-5 w-5 text-rose-500" />
+                            Send Geo Location Pin
+                        </DialogTitle>
+                        <DialogDescription>
+                            Share exact GPS map location with name and address.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3 py-2">
+                        <div className="grid grid-cols-2 gap-2">
+                            <div>
+                                <label className="text-xs font-semibold mb-1 block">Latitude</label>
+                                <input
+                                    type="number"
+                                    step="any"
+                                    value={locLat}
+                                    onChange={(e) => setLocLat(parseFloat(e.target.value) || 0)}
+                                    className="w-full h-8 px-2.5 bg-background border rounded-md text-xs font-mono"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold mb-1 block">Longitude</label>
+                                <input
+                                    type="number"
+                                    step="any"
+                                    value={locLng}
+                                    onChange={(e) => setLocLng(parseFloat(e.target.value) || 0)}
+                                    className="w-full h-8 px-2.5 bg-background border rounded-md text-xs font-mono"
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="text-xs font-semibold mb-1 block">Location Name</label>
+                            <input
+                                type="text"
+                                value={locName}
+                                onChange={(e) => setLocName(e.target.value)}
+                                placeholder="e.g. Sole-What Store"
+                                className="w-full h-8 px-2.5 bg-background border rounded-md text-xs"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-semibold mb-1 block">Address</label>
+                            <input
+                                type="text"
+                                value={locAddress}
+                                onChange={(e) => setLocAddress(e.target.value)}
+                                placeholder="Street address details"
+                                className="w-full h-8 px-2.5 bg-background border rounded-md text-xs"
+                            />
+                        </div>
+                    </div>
+                    <div className="flex justify-end gap-2 pt-2">
+                        <Button variant="outline" size="sm" onClick={() => setLocationModalOpen(false)}>Cancel</Button>
+                        <Button size="sm" onClick={handleSendLocationModal} disabled={sendingInteractive}>
+                            {sendingInteractive ? "Sending..." : "Send Location"}
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* CONTACT DIALOG */}
+            <Dialog open={contactModalOpen} onOpenChange={setContactModalOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <UserCheck className="h-5 w-5 text-teal-500" />
+                            Send Contact Card (VCard)
+                        </DialogTitle>
+                        <DialogDescription>
+                            Send digital contact card that can be saved with 1 click.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3 py-2">
+                        <div>
+                            <label className="text-xs font-semibold mb-1 block">Display Name *</label>
+                            <input
+                                type="text"
+                                value={cName}
+                                onChange={(e) => setCName(e.target.value)}
+                                placeholder="Contact Name"
+                                className="w-full h-8 px-2.5 bg-background border rounded-md text-xs"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-semibold mb-1 block">Phone Number *</label>
+                            <input
+                                type="text"
+                                value={cPhone}
+                                onChange={(e) => setCPhone(e.target.value)}
+                                placeholder="+92 300 1234567"
+                                className="w-full h-8 px-2.5 bg-background border rounded-md text-xs font-mono"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-semibold mb-1 block">Organization / Company</label>
+                            <input
+                                type="text"
+                                value={cOrg}
+                                onChange={(e) => setCOrg(e.target.value)}
+                                placeholder="Sole-What Support"
+                                className="w-full h-8 px-2.5 bg-background border rounded-md text-xs"
+                            />
+                        </div>
+                    </div>
+                    <div className="flex justify-end gap-2 pt-2">
+                        <Button variant="outline" size="sm" onClick={() => setContactModalOpen(false)}>Cancel</Button>
+                        <Button size="sm" onClick={handleSendContactModal} disabled={sendingInteractive}>
+                            {sendingInteractive ? "Sending..." : "Send Contact"}
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
+

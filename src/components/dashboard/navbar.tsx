@@ -39,7 +39,9 @@ export function Navbar({ appName }: NavbarProps) {
         try {
             const res = await fetch("/api/notifications");
             if (res.ok) {
-                const responseData = await res.json();
+                const text = await res.text();
+                if (!text) return;
+                const responseData = JSON.parse(text);
                 const items = responseData?.data || [];
                 setNotifications(items);
                 setUnreadCount(items.filter((n: Notification) => !n.read).length);
@@ -150,14 +152,14 @@ export function Navbar({ appName }: NavbarProps) {
 
                 <Popover open={isOpen} onOpenChange={setIsOpen}>
                     <PopoverTrigger asChild>
-                        <Button variant="ghost" size="icon" className="relative hover:bg-muted/50 rounded-full h-10 w-10">
+                        <Button variant="ghost" size="icon" className="relative hover:bg-muted/50 rounded-md h-10 w-10">
                             <Bell className={`h-5 w-5 transition-colors ${unreadCount > 0 ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`} />
                             {unreadCount > 0 && (
                                 <span className="absolute top-1.5 right-2.5 h-2.5 w-2.5 bg-red-500 rounded-full animate-pulse border-2 border-background" />
                             )}
                         </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-80 p-0 rounded-2xl border border-border/50 shadow-2xl glass-panel" align="end">
+                    <PopoverContent className="w-80 p-0 rounded-md border border-border/50 shadow-2xl glass-panel" align="end">
                         <div className="p-4 border-b border-border/50 flex justify-between items-center bg-background/50">
                             <div>
                                 <h4 className="font-semibold leading-none text-foreground">Notifications</h4>

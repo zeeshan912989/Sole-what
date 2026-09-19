@@ -117,6 +117,9 @@ export async function bindAutoReply(sock: WASocket, sessionId: string) {
                 });
 
                 for (const rule of rules) {
+                    // Skip disabled rules
+                    if ((rule as any).enabled === false) continue;
+
                     let match = false;
                     const keyword = rule.keyword.toLowerCase();
                     const incoming = text.toLowerCase();
@@ -148,7 +151,41 @@ export async function bindAutoReply(sock: WASocket, sessionId: string) {
 
                         logger.info("AutoReply", `Match: ${rule.keyword} -> ${remoteJid}`);
 
-                        if (rule.isMedia && rule.mediaUrl) {
+                        // Handle Delay Timer if configured
+                        const delaySeconds = (rule as any).delaySeconds || 0;
+                        if (delaySeconds > 0) {
+                            await new Promise(res => setTimeout(res, Math.min(delaySeconds, 30) * 1000));
+                        }
+
+                        const replyType = (rule as any).replyType || (rule.isMedia ? "MEDIA" : "TEXT");
+                        const interactiveData = (rule as any).interactiveData ? JSON.parse((rule as any).interactiveData) : null;
+
+                        if (replyType === "POLL" && interactiveData) {
+                            await sock.sendMessage(remoteJid, {
+                                poll: {
+                                    name: interactiveData.question || rule.response || rule.keyword,
+                                    values: interactiveData.options || ["Option 1", "Option 2"],
+                                    selectableCount: interactiveData.selectableCount || 1
+                                }
+                            }, { quoted: msg });
+                        } else if (replyType === "LOCATION" && interactiveData) {
+                            await sock.sendMessage(remoteJid, {
+                                location: {
+                                    degreesLatitude: interactiveData.latitude || 31.5204,
+                                    degreesLongitude: interactiveData.longitude || 74.3587,
+                                    name: interactiveData.name || rule.response || undefined,
+                                    address: interactiveData.address || undefined
+                                }
+                            }, { quoted: msg });
+                        } else if (replyType === "CONTACT" && interactiveData) {
+                            const vcard = interactiveData.vcard || `BEGIN:VCARD\nVERSION:3.0\nFN:${interactiveData.displayName}\nEND:VCARD`;
+                            await sock.sendMessage(remoteJid, {
+                                contacts: {
+                                    displayName: interactiveData.displayName || "Contact",
+                                    contacts: [{ displayName: interactiveData.displayName || "Contact", vcard }]
+                                }
+                            }, { quoted: msg });
+                        } else if ((replyType === "MEDIA" || rule.isMedia) && rule.mediaUrl) {
                             const url = rule.mediaUrl;
                             const type = (rule as any).mediaType || "document";
                             
@@ -191,3 +228,45 @@ export async function bindAutoReply(sock: WASocket, sessionId: string) {
         }
     });
 }
+
+// Check if an incoming message matches any active Keyword Auto-Reply rule
+export async function hasMatchingKeywordRule(sessionId: string, text: string, isGroup: boolean): Promise<boolean> {
+    try {
+        const rules = await prisma.autoReply.findMany({
+            where: { session: { sessionId } }
+        });
+
+        const incoming = text.trim().toLowerCase();
+        for (const rule of rules) {
+            if ((rule as any).enabled === false) continue;
+
+            let match = false;
+            const keyword = rule.keyword.toLowerCase();
+
+            switch (rule.matchType) {
+                case 'EXACT':
+                    match = incoming === keyword;
+                    break;
+                case 'CONTAINS':
+                    match = incoming.includes(keyword);
+                    break;
+                case 'REGEX':
+                    try {
+                        match = new RegExp(rule.keyword, 'i').test(text);
+                    } catch (e) {}
+                    break;
+            }
+
+            if (match) {
+                const triggerType = (rule as any).triggerType || 'ALL';
+                if (triggerType === 'GROUP' && !isGroup) continue;
+                if (triggerType === 'PRIVATE' && isGroup) continue;
+                return true;
+            }
+        }
+    } catch (e) {
+        logger.error("AutoReply", "Error checking matching keyword rule", e);
+    }
+    return false;
+}
+

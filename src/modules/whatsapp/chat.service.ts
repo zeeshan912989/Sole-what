@@ -237,7 +237,9 @@ export class ChatService {
             }
         }
 
-        let msgPayload = { ...messagePayload };
+        let msgPayload = typeof messagePayload === 'string'
+            ? { text: messagePayload }
+            : { ...messagePayload };
 
         // Normalize "text" to "caption" if a media message is sent with "text"
         if (msgPayload.text && (msgPayload.image || msgPayload.video || msgPayload.document || msgPayload.audio)) {
@@ -254,8 +256,8 @@ export class ChatService {
                 if (!res.ok) throw new Error(`Failed to fetch sticker media`);
                 const buffer = await res.arrayBuffer();
                 const sticker = new Sticker(Buffer.from(buffer), {
-                    pack: msgPayload.sticker.pack || "WA-AKG Bot",
-                    author: msgPayload.sticker.author || "WA-AKG",
+                    pack: msgPayload.sticker.pack || "sole-what Bot",
+                    author: msgPayload.sticker.author || "sole-what",
                     type: "full",
                     quality: 50
                 });
@@ -396,8 +398,8 @@ export class ChatService {
             content = { document: buffer, mimetype, fileName, ...messageOptions };
         } else if (type === 'sticker') {
             const sticker = new Sticker(buffer, {
-                pack: "WA-AKG Bot",
-                author: "WA-AKG",
+                pack: "sole-what Bot",
+                author: "sole-what",
                 type: "full",
                 quality: 50
             });
